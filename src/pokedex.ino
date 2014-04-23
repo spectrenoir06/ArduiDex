@@ -1,21 +1,3 @@
-/***************************************************
-  This is an example sketch for the Adafruit 1.8" SPI display.
-  This library works with the Adafruit 1.8" TFT Breakout w/SD card
-  ----> http://www.adafruit.com/products/358
-  as well as Adafruit raw 1.8" TFT display
-  ----> http://www.adafruit.com/products/618
-
-  Check out the links above for our tutorials and wiring diagrams
-  These displays use SPI to communicate, 4 or 5 pins are required to
-  interface (RST is optional)
-  Adafruit invests time and resources providing this open source code,
-  please support Adafruit and open-source hardware by purchasing
-  products from Adafruit!
-
-  Written by Limor Fried/Ladyada for Adafruit Industries.
-  MIT license, all text above must be included in any redistribution
- ****************************************************/
-
 #include <Adafruit_GFX.h>    // Core graphics library
 #include <Adafruit_ST7735.h> // Hardware-specific library
 #include <SPI.h>
@@ -26,18 +8,12 @@
     #define F(string_literal) string_literal
 #endif
 
-// TFT display and SD card will share the hardware SPI interface.
-// Hardware SPI pins are specific to the Arduino board type and
-// cannot be remapped to alternate pins.  For Arduino Uno,
-// Duemilanove, etc., pin 11 = MOSI, pin 12 = MISO, pin 13 = SCK.
-#define SD_CS    4  // Chip select line for SD card
-
+#define SD_CS 4
 #define sclk 13
 #define mosi 11
 #define cs   10
 #define dc   8
 #define rst  0
-
 
 #define Neutral 0
 #define Press 1
@@ -46,19 +22,15 @@
 #define Right 4
 #define Left 5
 
-int page = 1;
 
 Adafruit_ST7735 tft = Adafruit_ST7735(cs, dc, rst);
-
 uint16_t pallette[16];
+char bufflocal[25];
+int page = 1;
 
-char bufflocal[10];
-
-//char file[20];
 
 char * nextfield(File f)
-{
-  
+{  
   int i=0;
   char tmp;
   
@@ -83,57 +55,75 @@ char * nextfield(File f)
 void dispInfo(int id)
 {
   char datafile[20];
-  sprintf(datafile,"pokedex/data/%d.dat",id);
+  sprintf(datafile,"data/%d.dat",id);
   Serial.println(datafile);
-    
-  File data = SD.open(datafile);
-
-
   tft.setCursor(0, 100);
-  //tft.setTextColor(color);
-  //tft.setTextWrap(true);
-  tft.setTextSize(1);
-  
-  tft.print("id    : ");
-  tft.println(nextfield(data));
-  
-  tft.print("name  : ");
-  tft.println(nextfield(data));
-  
-  nextfield(data);
-  
-  tft.print("height: ");
-  tft.println(nextfield(data));
-  
-  tft.print("weight: ");
-  tft.println(nextfield(data));
-  
-  data.close();
+    
+  File data;
+  if ((data = SD.open(datafile)) == NULL) 
+  {
+    // Serial.print("File not found");
+    
+    tft.setTextColor(ST7735_RED);
+    tft.setTextSize(2);
+    tft.print("No data");
+    
+    return;
+  }
+  else
+  {
+    tft.setTextColor(ST7735_WHITE);
+    //tft.setTextWrap(true);
+    tft.setTextSize(1);
+    
+    tft.print("id    : ");
+    tft.println(nextfield(data));
+    
+    tft.print("name  : ");
+    tft.println(nextfield(data));
+    
+    nextfield(data);
+    
+    tft.print("height: ");
+    tft.println(nextfield(data));
+    
+    tft.print("weight: ");
+    tft.println(nextfield(data));
+    
+    data.close();
+  }
 }
 
 void dispPkm(int id)
 {
-  char file[25];
-  sprintf(file,"pokedex/img/%d.bmp",page);
+  char file[15];
+  if (id == -1)
+  {
+    sprintf(file,"img2/%d.bmp",page); // charge shiny 
+  }
+  else
+  {
+    sprintf(file,"img/%d.bmp",id); // charge new pkm
+  }
   Serial.println(file);
   bmpDraw(file, 16, 0); 
 }
 
 void change_page(int d)
 {
-  if ((page+d<0) || (page+d >719 ))
+  /*if ((page+d<0) || (page+d >719 ))
   {
-    Serial.println("noData");
+    Serial.println("out");
     delay(500);
-    return;
+    //return;
   }
   else
   {
-    page+=d;
-    tft.fillScreen(ST7735_BLACK);
+  */  page+=d;
+    tft.fillScreen(ST7735_RED);
     dispInfo(page);
     dispPkm(page);
-  }
+  //}
 }
 
 void setup(void) {
@@ -200,6 +190,7 @@ void loop()
       break;
     case Press:
       // Serial.println("Press");
+      dispPkm(-1);
       break;
   }
 }
@@ -253,6 +244,10 @@ void bmpDraw(char *filename, uint8_t x, uint8_t y) {
   // Open requested file on SD card
   if ((bmpFile = SD.open(filename)) == NULL) {
     // Serial.print("File not found");
+    tft.setTextColor(ST7735_RED);
+    tft.setCursor(0, 40);
+    tft.setTextSize(2);
+    tft.print("No Img");
     return;
   }
 
@@ -345,7 +340,6 @@ void bmpDraw(char *filename, uint8_t x, uint8_t y) {
 
 // These read 16- and 32-bit types from the SD card file.
 // BMP data is stored little-endian, Arduino is little-endian too.
-// May need to reverse subscript order if porting elsewhere.
 
 uint16_t read16(File f) {
   uint16_t result;
