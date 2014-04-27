@@ -1,4 +1,0 @@
-ArduiDex
-========
-
-Pokédex for arduino
